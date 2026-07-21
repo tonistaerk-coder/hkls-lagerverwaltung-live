@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>HKLS Lagerverwaltung</title>
+<style>
+  :root {
+    --blue: #1a3a5c; --blue-mid: #235080; --accent: #e8820c;
+    --bg: #f0f2f5; --card: #ffffff; --text: #1a1a2e; --sub: #5a6a7a;
+    --border: #d0d8e4; --ok: #1a7a4a; --warn: #b85000; --danger: #c0392b;
+    --radius: 10px; --shadow: 0 2px 8px rgba(0,0,0,0.10);
+  }
+
+  .we-table { width:100%; border-collapse: collapse; }
+  .we-table th, .we-table td { border-bottom:1px solid var(--border); padding:8px 6px; font-size:12px; text-align:left; vertical-align:top; }
+  .we-table th { color: var(--sub); font-weight:800; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+  .we-input { width:100%; padding:8px 10px; border:1.5px solid var(--border); border-radius:7px; background:#fff; font-size:14px; }
+  .muted { color: var(--sub); }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:800; border:1px solid var(--border); background:#fff; }
+  .pill.warn { border-color:#f2c08a; background:#fff3e6; color:#7a3a00; }
+  .pill.ok { border-color:#bfe7cf; background:#eefaf3; color: var(--ok); }
+  .pill.danger { border-color:#f3b1aa; background:#fff5f5; color: var(--danger); }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
+
+  header { background: var(--blue); color: #fff; padding: 10px 14px 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 6px rgba(0,0,0,0.22); }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; padding-bottom: 8px; }
+  header .logo { font-size: 15px; font-weight: 800; letter-spacing: .2px; line-height: 1.2; }
+  header .logo span { color: var(--accent); }
+  header .subtitle { font-size: 10px; color: #a8c4e0; margin-top: 2px; }
+  #headerDate { font-size: 10px; color: #a8c4e0; text-align: right; }
+
+  /* Sync-Indikator */
+  #sync-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #888; margin-left: 6px; vertical-align: middle; transition: background .3s; }
+  #sync-dot.online  { background: #2ecc71; }
+  #sync-dot.syncing { background: var(--accent); animation: pulse .6s infinite alternate; }
+  #sync-dot.offline { background: var(--danger); }
+  @keyframes pulse { from { opacity: 1; } to { opacity: .4; } }
+
+  .nl-bar { display: flex; border-top: 1px solid rgba(255,255,255,0.1); }
+  .nl-btn { flex: 1; padding: 8px 4px; border: none; background: transparent; color: #a8c4e0; font-size: 11px; font-weight: 700; cursor: pointer; border-bottom: 3px solid transparent; transition: all .15s; text-align: center; }
+  .nl-btn.active { color: #fff; border-bottom-color: var(--accent); background: rgba(255,255,255,0.08); }
+  .nl-btn .nl-icon { font-size: 14px; display: block; }
+
+  nav { display: flex; background: var(--blue-mid); overflow-x: auto; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+  nav button { flex: 1; min-width: 70px; padding: 10px 6px; border: none; background: transparent; color: #a8c4e0; font-size: 11px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; transition: all .15s; }
+  nav button.active { color: #fff; border-bottom-color: var(--accent); background: rgba(255,255,255,0.07); }
+
+  main { padding: 14px; max-width: 700px; margin: 0 auto; }
+
+  .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 14px; }
+  .card-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--blue); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+  label { display: block; font-size: 12px; font-weight: 700; color: var(--sub); margin-bottom: 4px; }
+  input, select, textarea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 15px; color: var(--text); background: #fafbfc; outline: none; transition: border .15s; -webkit-appearance: none; }
+  input:focus, select:focus { border-color: var(--blue-mid); background: #fff; }
+  .field { margin-bottom: 12px; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  .btn { display: block; width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; transition: filter .15s; }
+  .btn:active { filter: brightness(0.88); }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-success { background: var(--ok); color: #fff; }
+  .btn-accent  { background: var(--accent); color: #fff; }
+  .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--sub); font-size: 12px; font-weight: 600; padding: 6px 13px; border-radius: 6px; cursor: pointer; }
+
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .badge-ok     { background: #d4f0e0; color: var(--ok); }
+  .badge-warn   { background: #fde8d0; color: var(--warn); }
+  .badge-danger { background: #fdd; color: var(--danger); }
+  .badge-blue   { background: #ddeeff; color: var(--blue); }
+  .badge-orange { background: #fef0e0; color: var(--accent); }
+
+  .list-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; background: #fafbfc; }
+  .list-item .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; gap: 6px; }
+  .item-name { font-weight: 700; font-size: 14px; flex: 1; }
+  .item-meta { font-size: 12px; color: var(--sub); line-height: 1.75; }
+  .item-meta strong { color: var(--text); }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .stat-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 8px; text-align: center; }
+  .stat-val { font-size: 26px; font-weight: 800; color: var(--blue); }
+  .stat-lbl { font-size: 10px; color: var(--sub); font-weight: 700; margin-top: 2px; text-transform: uppercase; }
+
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .filter-bar input { flex: 1; }
+
+  .section-sep { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--sub); margin: 16px 0 8px; display: flex; align-items: center; gap: 8px; }
+  .section-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 14px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.25); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 999; white-space: nowrap; }
+  #toast.show { opacity: 1; }
+
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--card); border-radius: 14px 14px 0 0; width: 100%; max-width: 700px; padding: 20px 16px 30px; max-height: 88vh; overflow-y: auto; }
+  .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 14px; color: var(--blue); }
+
+  .tab-view { display: none; }
+  .tab-view.active { display: block; }
+
+  .pos-item { background: #f0f4fa; border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .pos-item .pos-info { flex: 1; font-size: 13px; line-height: 1.6; }
+  .pos-del { background: none; border: none; color: var(--danger); font-size: 18px; cursor: pointer; padding: 0 4px; }
+
+  .status-bar { display: flex; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 8px; }
+  .status-step { flex: 1; padding: 7px 4px; text-align: center; font-size: 10px; font-weight: 700; background: var(--bg); color: var(--sub); cursor: pointer; border-right: 1px solid var(--border); transition: all .15s; }
+  .status-step:last-child { border-right: none; }
+  .status-step.active-bestellt     { background: #ddeeff; color: var(--blue); }
+  .status-step.active-teillieferung{ background: #fef0e0; color: var(--accent); }
+  .status-step.active-vollstaendig  { background: #d4f0e0; color: var(--ok); }
+
+  .foto-preview { width: 100%; max-height: 200px; object-fit: cover; border-radius: 7px; margin-top: 8px; border: 1px solid var(--border); display: none; }
+  .pbar-bg { background: var(--border); border-radius: 4px; height: 4px; margin-top: 8px; }
+  .pbar-fill { height: 4px; border-radius: 4px; transition: width .3s; }
+  .diff-ok   { color: var(--ok); font-weight: 700; }
+  .diff-warn { color: var(--warn); font-weight: 700; }
+  .nl-ffm { background: #e8f0fe; color: #1a3a8f; }
+  .nl-str { background: #fef3e8; color: #7a3a00; }
+  .nl-muc { background: #e8f8ee; color: #1a5a2a; }
+  .empty { text-align: center; color: var(--sub); padding: 28px 0; font-size: 14px; }
+
+  /* Lade-Overlay */
+  #loading { position:fixed; inset:0; background:var(--blue); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; color:#fff; gap:16px; }
+  #loading .spin { width:36px; height:36px; border:4px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Ladescreen -->
+<div id="loading">
+  <div class="spin"></div>
+  <div style="font-size:14px;font-weight:700;">Verbinde mit Datenbank…</div>
+</div>
+
+<header>
+  <div class="header-top">
+    <div>
+      <div class="logo"><span>HKLS</span> Lagerverwaltung <span id="sync-dot"></span></div>
+      <div class="subtitle">Lager Frankfurt · Lager Stuttgart · Lager München</div>
+    </div>
+    <div id="headerDate"></div>
+  </div>
+  <div class="nl-bar">
+    <button class="nl-btn active" onclick="switchNL('ffm')" id="nl-ffm"><span class="nl-icon">🏙️</span>Frankfurt</button>
+    <button class="nl-btn" onclick="switchNL('str')" id="nl-str"><span class="nl-icon">🌄</span>Stuttgart</button>
+    <button class="nl-btn" onclick="switchNL('muc')" id="nl-muc"><span class="nl-icon">⛰️</span>München</button>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="showTab('dashboard')">📊 Übersicht</button>
+  <button onclick="showTab('eingang')">🧾 Wareneingang</button>
+  <button onclick="showTab('artikel')">➕ Freie Artikel</button>
+  <button onclick="showTab('ausgang')">📤 Entnahme</button>
+  <button onclick="showTab('bestand')">📦 Bestand</button>
+  <button onclick="showTab('log')">🗒️ Buchungen</button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <div id="tab-dashboard" class="tab-view active">
+    <div id="nl-banner" class="card" style="padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+      <div id="nl-banner-icon" style="font-size:22px;"></div>
+      <div>
+        <div id="nl-banner-name" style="font-weight:800;font-size:15px;color:var(--blue);"></div>
+        <div id="nl-banner-region" style="font-size:11px;color:var(--sub);"></div>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" id="stat-pos">–</div><div class="stat-lbl">Positionen</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-akte">–</div><div class="stat-lbl">Aktennr. aktiv</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-diff" style="color:var(--ok)">–</div><div class="stat-lbl">Differenzen</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Bestellstatus je Projektakte</div>
+      <div id="diff-overview"><div class="empty">Lädt…</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Letzte Buchungen</div>
+      <div id="recent-log"><div class="empty">Lädt…</div></div>
+    </div>
+  </div>
+
+  <!-- WARENEINGANG -->
+  <div id="tab-eingang" class="tab-view">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Wareneingang bestätigen (Techniker)</div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:10px;">Techniker: Bestellung auswählen und <strong>Ist-Mengen je Position</strong> bestätigen. Innendienst legt Bestellungen vorher an.</div>
+      <div class="field"><label>Bestellung auswählen *</label><select id="we-bestellung"><option value="">– Bestellung wählen –</option></select></div>
+      <div id="we-pos" class="list-item" style="display:none;">
+        <div class="item-meta" style="font-size:12px;line-height:1.7;">
+          <strong>Positionen:</strong> <span id="we-pos-count">–</span> &nbsp;|&nbsp;
+          <strong>Akte:</strong> <span id="we-pos-akte">–</span> &nbsp;|&nbsp;
+          <strong>Bestellnr.:</strong> <span id="we-pos-best">–</span>
+        </div>
+        <div style="margin-top:10px;overflow:auto;">
+          <table class="we-table" aria-label="Ist-Mengen je Position">
+            <thead>
+              <tr>
+                <th style="min-width:180px;">Material</th>
+                <th style="min-width:110px;">Soll</th>
+                <th style="min-width:140px;">Ist (eingegangen)</th>
+              </tr>
+            </thead>
+            <tbody id="we-pos-tbody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--sub);">
+          Hinweis: Ist-Menge kann <strong>kleiner</strong> (Teillieferung) oder <strong>größer</strong> (Mehrlieferung) als Soll sein.
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="field"><label>Bestätigt durch *</label><input type="text" id="we-name" placeholder="Name" /></div>
+        <div class="field"><label>Status nach Eingang</label>
+          <select id="we-status">
+            <option value="teillieferung">📦 Teillieferung</option>
+            <option value="vollstaendig">✅ Vollständig</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Bemerkung</label><input type="text" id="we-bem" placeholder="optional" /></div>
+      <button class="btn btn-primary" onclick="wareneingangBestaetigen()">✅ Wareneingang bestätigen</button>
+    </div>
+
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Bestellung anlegen (Innendienst)</div>
+      <div class="field"><label>Bezeichnung *</label><input type="text" id="ei-bez" placeholder="z.B. 1411 – Zara Frankfurt – Instandsetzung Außengerät 3" autocomplete="off" /></div>
+      <div class="field"><label>Projektakten-Nummer *</label><input type="text" id="ei-akte" placeholder="z.B. AKT-2026-047" autocomplete="off" /></div>
+      <div class="row-2">
+        <div class="field"><label>Bestellnummer *</label><input type="text" id="ei-bestellung" placeholder="z.B. BE-2026-112" /></div>
+        <div class="field"><label>Lieferant</label><input type="text" id="ei-lieferant" placeholder="z.B. Refra" /></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Lagerplatz</label><input type="text" id="ei-lagerplatz" placeholder="z.B. Regal A-3" /></div>
+        <div class="field"><label>Bestellstatus *</label>
+          <select id="ei-status">
+            <option value="bestellt">📋 Bestellt</option>
+            <option value="teillieferung">📦 Teillieferung</option>
+            <option value="vollstaendig">✅ Vollständig</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>📷 Lieferschein-Foto (optional)</label>
+        <input type="file" id="ei-foto" accept="image/*" capture="environment" onchange="fotoPreview()" style="padding:6px 10px;font-size:13px;" />
+        <img id="ei-foto-preview" class="foto-preview" alt="Vorschau" />
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Position hinzufügen</div>
+      <div class="field"><label>Materialbeschreibung *</label><input type="text" id="pos-material" placeholder="z.B. Kältemittel R410A 10 kg" /></div>
+      <div class="row-3">
+        <div class="field"><label>Art.-Nr.</label><input type="text" id="pos-artnr" placeholder="KM-410A" /></div>
+        <div class="field"><label>Menge *</label><input type="number" id="pos-menge" placeholder="5" min="0.001" step="any" /></div>
+        <div class="field"><label>Einheit *</label><input type="text" id="pos-einheit" placeholder="Stk / m / kg" /></div>
+      </div>
+      <div class="field"><label>Bemerkung</label><input type="text" id="pos-bemerkung" placeholder="optional" /></div>
+      <button class="btn btn-accent" onclick="addPosition()">＋ Position zur Liste</button>
+    </div>
+    <div class="card" id="pos-list-card" style="display:none;">
+      <div class="card-title"><span class="dot"></span>Positionen dieser Bestellung</div>
+      <div id="pos-list"></div>
+      <br/>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-success" onclick="bestellungAnlegen()">✅ Bestellung anlegen</button>
+        <button class="btn btn-outline" onclick="resetBestellung()">Zurücksetzen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FREIE ARTIKEL (Techniker) -->
+  <div id="tab-artikel" class="tab-view">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Freie Artikel hinzufügen (Techniker)</div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:10px;">Für Lagerartikel ohne Bestellung (z.B. Kondensatpumpe, Reiniger, Tape, Fittinge).</div>
+
+      <div class="field"><label>Materialbeschreibung *</label><input type="text" id="fa-material" placeholder="z.B. Kondensatpumpe Aspen Mini Lime" /></div>
+      <div class="row-3">
+        <div class="field"><label>Art.-Nr.</label><input type="text" id="fa-artnr" placeholder="optional" /></div>
+        <div class="field"><label>Menge *</label><input type="number" id="fa-menge" placeholder="1" min="0.001" step="any" /></div>
+        <div class="field"><label>Einheit *</label><input type="text" id="fa-einheit" placeholder="Stk / l / m" /></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Lagerplatz</label><input type="text" id="fa-lagerplatz" placeholder="z.B. Regal B-1" /></div>
+        <div class="field"><label>Techniker *</label><input type="text" id="fa-person" placeholder="Name" /></div>
+      </div>
+      <div class="field"><label>Bemerkung</label><input type="text" id="fa-bem" placeholder="optional" /></div>
+      <button class="btn btn-primary" onclick="freierArtikelBuchen()">➕ Artikel in Bestand buchen</button>
+
+      <div style="font-size:11px;color:var(--sub);margin-top:10px;">Hinweis: Diese Buchung erhöht den Bestand sofort (ohne Wareneingangs-Bestätigung).</div>
+    </div>
+  </div>
+
+  <!-- WARENAUSGANG -->
+  <div id="tab-ausgang" class="tab-view">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Material entnehmen</div>
+      <div class="field"><label>Position wählen *</label><select id="aus-position"><option value="">– Position wählen –</option></select></div>
+      <div id="aus-info" style="display:none;" class="list-item"><div class="item-meta" id="aus-info-text"></div></div>
+      <div class="row-2">
+        <div class="field"><label>Entnahmemenge *</label><input type="number" id="aus-menge" placeholder="Menge" min="0.001" step="any" /></div>
+        <div class="field"><label>Aktennr. (abweichend)</label><input type="text" id="aus-akte-ziel" placeholder="leer = gleiche Akte" /></div>
+      </div>
+      <div class="field"><label>Techniker / Person</label><input type="text" id="aus-person" placeholder="z.B. M. Bauer" /></div>
+      <div class="field"><label>Bemerkung</label><input type="text" id="aus-bemerkung" placeholder="optional" /></div>
+      <button class="btn btn-primary" onclick="buchungAusgang()">📤 Entnahme buchen</button>
+      <div style="font-size:11px;color:var(--sub);margin-top:10px;">Hinweis: Entnahme ist nur sinnvoll, wenn der Wareneingang zuvor bestätigt wurde.</div>
+    </div>
+  </div>
+
+  <!-- BESTAND -->
+  <div id="tab-bestand" class="tab-view">
+    <div class="filter-bar"><input type="text" id="bestand-filter" placeholder="🔍 Material, Aktennr., Bestellung…" oninput="renderBestand()" /></div>
+    <div id="bestand-list"><div class="empty">Lädt…</div></div>
+  </div>
+
+  <!-- LOG -->
+  <div id="tab-log" class="tab-view">
+    <div class="filter-bar">
+      <input type="text" id="log-filter" placeholder="🔍 Suche in Buchungen…" oninput="renderLog()" />
+      <button class="btn-outline" onclick="exportCSV()">⬇ CSV</button>
+    </div>
+    <div id="log-list"><div class="empty">Lädt…</div></div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<!-- Detail Modal -->
+<div class="modal-bg" id="detail-modal" onclick="closeModal(event)">
+  <div class="modal">
+    <h3 id="modal-title">Detail</h3>
+    <div id="modal-body"></div>
+    <br/>
+    <button class="btn btn-outline" onclick="document.getElementById('detail-modal').classList.remove('open')">Schließen</button>
+  </div>
+</div>
+
+<!-- Status Modal -->
+<div class="modal-bg" id="status-modal" onclick="closeStatusModal(event)">
+  <div class="modal">
+    <h3>Bestellstatus ändern</h3>
+    <div id="status-modal-info" class="item-meta" style="margin-bottom:14px;font-size:13px;"></div>
+    <div class="status-bar" id="status-modal-bar"></div>
+    <br/>
+    <button class="btn btn-outline" onclick="document.getElementById('status-modal').classList.remove('open')">Schließen</button>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp }                          from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, doc, addDoc,
+         updateDoc, onSnapshot, query, orderBy,
+         where, getDocs, writeBatch }              from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ══════════════════════════════════════
+//  FIREBASE CONFIG
+// ══════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyB6L3qenKSCMLsyioPFKQs3GmRqGkIF2Lo",
+  authDomain:        "hkls-lagerverwaltung-live.firebaseapp.com",
+  projectId:         "hkls-lagerverwaltung-live",
+  storageBucket:     "hkls-lagerverwaltung-live.firebasestorage.app",
+  messagingSenderId: "47979437423",
+  appId:             "1:47979437423:web:e38991fd3e099aa1c1dc9a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ══════════════════════════════════════
+//  KONFIGURATION
+// ══════════════════════════════════════
+const NL_CONFIG = {
+  ffm: { name: 'Lager Frankfurt',  region: 'Region Mitte / Südwest', icon: '🏙️' },
+  str: { name: 'Lager Stuttgart',  region: 'Region Mitte / Südwest', icon: '🌄' },
+  muc: { name: 'Lager München',    region: 'Region Süd',             icon: '⛰️' }
+};
+const STATUS_LABELS = {
+  bestellt:      { label: '📋 Bestellt',      cls: 'badge-blue',   step: 'active-bestellt' },
+  teillieferung: { label: '📦 Teillieferung', cls: 'badge-orange', step: 'active-teillieferung' },
+  vollstaendig:  { label: '✅ Vollständig',   cls: 'badge-ok',     step: 'active-vollstaendig' }
+};
+
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+let activeNL = localStorage.getItem('elbion_nl') || 'ffm';
+let bestand  = [];
+let log      = [];
+let pendingPositionen = [];
+let currentStatusBestellungId = null;
+let unsubBestand = null;
+let unsubLog     = null;
+
+// ══════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════
+function uid()  { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function heute(){ const d=new Date(); return d.toLocaleDateString('de-DE')+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); }
+function toast(msg, dur=2600){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),dur); }
+function numFrom(v){ const n=parseFloat(String(v||'').replace(',','.')); return isNaN(n)?0:n; }
+function statusBadge(s){ const c=STATUS_LABELS[s]||STATUS_LABELS['bestellt']; return `<span class="badge ${c.cls}">${c.label}</span>`; }
+function setSyncDot(state){ const d=document.getElementById('sync-dot'); d.className=''; d.classList.add(state); }
+
+// ══════════════════════════════════════
+//  ROLLENLOGIK (vereinfachte Variante)
+// ══════════════════════════════════════
+// Techniker bestätigt Wareneingang, Innendienst legt Bestellungen an.
+// Keine PIN, keine rollenbasierte Sichtbarkeit in der UI.
+
+// ══════════════════════════════════════
+//  FIRESTORE – ECHTZEIT LISTENER
+// ══════════════════════════════════════
+function subscribeToNL(nl) {
+  if(unsubBestand) unsubBestand();
+  if(unsubLog)     unsubLog();
+
+  setSyncDot('syncing');
+
+  // Bestand
+  const qBestand = query(collection(db, `lager_${nl}_bestand`));
+  unsubBestand = onSnapshot(qBestand, snap => {
+    bestand = snap.docs.map(d => ({id: d.id, ...d.data()}));
+
+    // Hinweis: keine Rollen-/PIN-Logik mehr – Bestand wird vollständig angezeigt
+    setSyncDot('online');
+    renderDashboard();
+    const activeTab = document.querySelector('.tab-view.active');
+    if(activeTab){
+      const name = activeTab.id.replace('tab-','');
+      if(name==='bestand') renderBestand();
+      if(name==='ausgang') populateAuswahlListe();
+    }
+    document.getElementById('loading').style.display='none';
+  }, err => { console.error(err); setSyncDot('offline'); toast('❌ Verbindungsfehler'); });
+
+  // Log
+  const qLog = query(collection(db, `lager_${nl}_log`), orderBy('ts','desc'));
+  unsubLog = onSnapshot(qLog, snap => {
+    log = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    const activeTab = document.querySelector('.tab-view.active');
+    if(activeTab && activeTab.id.replace('tab-','') === 'log') renderLog();
+    renderDashboard();
+  });
+}
+
+// ══════════════════════════════════════
+//  STANDORT SWITCH
+// ══════════════════════════════════════
+window.switchNL = function(nl) {
+  activeNL = nl;
+  localStorage.setItem('elbion_nl', nl);
+  document.querySelectorAll('.nl-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('nl-'+nl).classList.add('active');
+  pendingPositionen = [];
+  renderPosListe();
+  updateNLBanner();
+  setSyncDot('syncing');
+  bestand=[]; log=[];
+  subscribeToNL(nl);
+};
+
+function updateNLBanner(){
+  const c=NL_CONFIG[activeNL];
+  document.getElementById('nl-banner-icon').textContent   = c.icon;
+  document.getElementById('nl-banner-name').textContent   = c.name;
+  document.getElementById('nl-banner-region').textContent = c.region;
+}
+
+// ══════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════
+window.showTab = function(name){
+  document.querySelectorAll('.tab-view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const map=['dashboard','eingang','artikel','ausgang','bestand','log'];
+  const idx=map.indexOf(name);
+  if(idx>=0) document.querySelectorAll('nav button')[idx].classList.add('active');
+  if(name==='eingang')   populateWE();
+  if(name==='artikel')   { /* keine Listener nötig */ }
+  if(name==='ausgang')   populateAuswahlListe();
+  if(name==='bestand')   renderBestand();
+  if(name==='log')       renderLog();
+  if(name==='dashboard') renderDashboard();
+};
+
+// ══════════════════════════════════════
+//  FOTO
+// ══════════════════════════════════════
+window.fotoPreview = function(){
+  const file=document.getElementById('ei-foto').files[0];
+  const prev=document.getElementById('ei-foto-preview');
+  if(file){ const r=new FileReader(); r.onload=e=>{prev.src=e.target.result;prev.style.display='block';}; r.readAsDataURL(file); }
+  else prev.style.display='none';
+};
+function fotoToBase64(){
+  return new Promise(resolve=>{
+    const file=document.getElementById('ei-foto').files[0];
+    if(!file){resolve(null);return;}
+    const r=new FileReader(); r.onload=e=>resolve(e.target.result); r.readAsDataURL(file);
+  });
+}
+
+// ══════════════════════════════════════
+//  WARENEINGANG
+// ══════════════════════════════════════
+window.addPosition = function(){
+  const material=document.getElementById('pos-material').value.trim();
+  const menge=numFrom(document.getElementById('pos-menge').value);
+  const einheit=document.getElementById('pos-einheit').value.trim();
+  if(!material||!menge||!einheit){toast('⚠️ Material, Menge und Einheit pflegen');return;}
+  pendingPositionen.push({material,artnr:document.getElementById('pos-artnr').value.trim(),menge,einheit,bemerkung:document.getElementById('pos-bemerkung').value.trim()});
+  ['pos-material','pos-artnr','pos-menge','pos-einheit','pos-bemerkung'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pos-material').focus();
+  renderPosListe();
+  toast(`✚ Position hinzugefügt (${pendingPositionen.length} gesamt)`);
+};
+
+window.removePosition = function(idx){ pendingPositionen.splice(idx,1); renderPosListe(); };
+
+function renderPosListe(){
+  const card=document.getElementById('pos-list-card');
+  const list=document.getElementById('pos-list');
+  if(!pendingPositionen.length){card.style.display='none';list.innerHTML='';return;}
+  card.style.display='block';
+  list.innerHTML=pendingPositionen.map((p,i)=>`
+    <div class="pos-item">
+      <div class="pos-info"><strong>${p.material}</strong>${p.artnr?' · <span style="color:var(--sub);">'+p.artnr+'</span>':''}<br>
+        <span style="color:var(--blue);font-weight:700;">${p.menge} ${p.einheit}</span>
+        ${p.bemerkung?' · <em style="color:var(--sub);">'+p.bemerkung+'</em>':''}
+      </div>
+      <button class="pos-del" onclick="removePosition(${i})">✕</button>
+    </div>`).join('');
+}
+
+// ── Serviceleitung: Bestellung anlegen (ohne Bestand) ──
+window.bestellungAnlegen = async function(){
+  const bez=document.getElementById('ei-bez').value.trim();
+  const akte=document.getElementById('ei-akte').value.trim();
+  const bestellung=document.getElementById('ei-bestellung').value.trim();
+  if(!bez){toast('⚠️ Bezeichnung eingeben');return;}
+  if(!akte){toast('⚠️ Aktennummer eingeben');return;}
+  if(!bestellung){toast('⚠️ Bestellnummer eingeben');return;}
+  if(!pendingPositionen.length){toast('⚠️ Mindestens eine Position hinzufügen');return;}
+
+  setSyncDot('syncing');
+  const lieferant=document.getElementById('ei-lieferant').value.trim();
+  const lagerplatz=document.getElementById('ei-lagerplatz').value.trim();
+  const status=document.getElementById('ei-status').value || 'bestellt';
+  const datum=heute();
+  const foto=await fotoToBase64();
+  const bestellKey=uid();
+
+  try {
+    const batch=writeBatch(db);
+    pendingPositionen.forEach(p=>{
+      const ref=doc(collection(db,`lager_${activeNL}_bestand`));
+      // angelegt=true, bestaetigt=false → noch NICHT im Lager
+      batch.set(ref,{bestellKey,bez,akte,bestellung,lieferant,status,material:p.material,artnr:p.artnr,mengeNum:p.menge,einheit:p.einheit,verfuegbar:0,lagerplatz,bemerkung:p.bemerkung,datum,foto:foto||null,angelegt:true,bestaetigt:false,ts:Date.now()});
+    });
+    const lref=doc(collection(db,`lager_${activeNL}_log`));
+    batch.set(lref,{typ:'Angelegt',datum,akte,material:bez,menge:`${pendingPositionen.length} Pos.`,ref:bestellung,person:'',bemerkung:'',ts:Date.now()});
+
+    await batch.commit();
+
+    pendingPositionen=[];
+    resetBestellung();
+    toast('✅ Bestellung angelegt (Techniker bestätigt Wareneingang später)');
+  } catch(e){ console.error(e); toast('❌ Fehler beim Speichern'); setSyncDot('offline'); }
+};
+
+window.resetBestellung = function(){
+  ['ei-bez','ei-akte','ei-bestellung','ei-lieferant','ei-lagerplatz'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ei-status').value='bestellt';
+  document.getElementById('ei-foto').value='';
+  document.getElementById('ei-foto-preview').style.display='none';
+  pendingPositionen=[];
+  renderPosListe();
+};
+
+function populateWE(){
+  const sel=document.getElementById('we-bestellung');
+  if(!sel) return;
+
+  // nur Bestellungen, die angelegt sind aber noch nicht bestätigt
+  const pending = bestand
+    .filter(b => (b.angelegt === true))
+    .filter(b => b.bestaetigt !== true)
+    .filter(b => b.deleted !== true);
+
+  const byBest = {};
+  pending.forEach(b => { const k=b.bestellKey || b.bestellung; if(!byBest[k]) byBest[k]=b; });
+
+  sel.innerHTML = '<option value="">– Bestellung wählen –</option>';
+  Object.entries(byBest).forEach(([k, b]) => {
+    const opt=document.createElement('option');
+    opt.value = k;
+    opt.textContent = `${b.bestellung} · ${b.akte} · ${b.bez||''}`.trim();
+    sel.appendChild(opt);
+  });
+
+  sel.onchange = () => renderWEPositions(sel.value);
+  renderWEPositions(sel.value);
+}
+
+function renderWEPositions(bestKey){
+  const wrap=document.getElementById('we-pos');
+  const tbody=document.getElementById('we-pos-tbody');
+  if(!wrap || !tbody){ return; }
+
+  if(!bestKey){ wrap.style.display='none'; tbody.innerHTML=''; return; }
+
+  const pos = bestand
+    .filter(b => (b.bestellKey||b.bestellung) === bestKey)
+    .filter(b => b.deleted !== true);
+
+  if(!pos.length){ wrap.style.display='none'; tbody.innerHTML=''; return; }
+
+  document.getElementById('we-pos-count').textContent = String(pos.length);
+  document.getElementById('we-pos-akte').textContent  = pos[0].akte || '–';
+  document.getElementById('we-pos-best').textContent  = pos[0].bestellung || '–';
+
+  tbody.innerHTML = pos.map(p=>{
+    const soll = `${p.mengeNum} ${p.einheit}`;
+    const inputId = `we-ist-${p.id}`;
+    return `
+      <tr>
+        <td><div style="font-weight:800;color:var(--text);">${p.material}</div>${p.artnr?`<div class="muted" style="margin-top:2px;">Art.-Nr.: ${p.artnr}</div>`:''}</td>
+        <td><span class="pill">${soll}</span></td>
+        <td>
+          <input class="we-input" id="${inputId}" type="number" min="0" step="any" placeholder="z.B. ${p.mengeNum}" value="${String(p.mengeNum)}" />
+        </td>
+      </tr>`;
+  }).join('');
+  wrap.style.display='block';
+}
+
+// ── Techniker: Wareneingang bestätigen (macht Bestand verfügbar) ──
+window.wareneingangBestaetigen = async function(){
+  const bestKey = document.getElementById('we-bestellung').value;
+  const name    = document.getElementById('we-name').value.trim();
+  const status  = document.getElementById('we-status').value;
+  const bem     = document.getElementById('we-bem').value.trim();
+  if(!bestKey){ toast('⚠️ Bestellung wählen'); return; }
+  if(!name){ toast('⚠️ Name eintragen'); return; }
+
+  const pos = bestand
+    .filter(b => (b.bestellKey||b.bestellung) === bestKey)
+    .filter(b => b.deleted !== true);
+  if(!pos.length){ toast('❌ Keine Positionen gefunden'); return; }
+
+  // Ist-Mengen einsammeln
+  const istMap = {};
+  for(const p of pos){
+    const el = document.getElementById(`we-ist-${p.id}`);
+    const raw = el ? el.value : '';
+    const ist = numFrom(raw);
+    if(ist < 0){ toast('⚠️ Ist-Menge darf nicht negativ sein'); return; }
+    istMap[p.id] = ist;
+  }
+
+  try {
+    setSyncDot('syncing');
+    const batch = writeBatch(db);
+    const tsNow = Date.now();
+    const weAm  = heute();
+
+    pos.forEach(p => {
+      const ist = istMap[p.id];
+      batch.update(doc(db, `lager_${activeNL}_bestand`, p.id), {
+        bestaetigt: true,
+        verfuegbar: ist,
+        // Sollwert bleibt in mengeNum – wir speichern Ist zusätzlich zur Nachvollziehbarkeit
+        istMenge: ist,
+        status: status,
+        weBestaetigtDurch: name,
+        weBestaetigtAm: weAm,
+        weBemerkung: bem || '',
+        weTs: tsNow
+      });
+    });
+
+    const ref = pos[0];
+    const sumSoll = pos.reduce((a,p)=>a+(numFrom(p.mengeNum)||0),0);
+    const sumIst  = pos.reduce((a,p)=>a+(numFrom(istMap[p.id])||0),0);
+    const lref = doc(collection(db, `lager_${activeNL}_log`));
+    batch.set(lref, {
+      typ:'Eingang bestätigt',
+      datum: weAm,
+      akte: ref.akte,
+      material: ref.bez||ref.material,
+      menge: `${pos.length} Pos. (Soll ${Math.round(sumSoll*10000)/10000} / Ist ${Math.round(sumIst*10000)/10000})`,
+      ref: ref.bestellung,
+      person: name,
+      bemerkung: bem,
+      ts: tsNow
+    });
+
+    await batch.commit();
+
+    document.getElementById('we-bestellung').value='';
+    document.getElementById('we-name').value='';
+    document.getElementById('we-bem').value='';
+    toast('✅ Wareneingang bestätigt (Ist-Mengen erfasst)');
+    populateWE();
+  } catch(e){ console.error(e); toast('❌ Fehler'); setSyncDot('offline'); }
+};
+
+
+// Backward compat (falls irgendwo noch referenziert)
+window.buchungEingang = window.bestellungAnlegen;
+
+// ══════════════════════════════════════
+//  BESTELLSTATUS
+// ══════════════════════════════════════
+window.openStatusModal = function(bestellKey){
+  currentStatusBestellungId=bestellKey;
+  const pos=bestand.filter(b=>b.bestellKey===bestellKey);
+  if(!pos.length) return;
+  const ref=pos[0];
+  document.getElementById('status-modal-info').innerHTML=`<strong>Bestellung:</strong> ${ref.bestellung} &nbsp;|&nbsp; <strong>Akte:</strong> ${ref.akte}<br><strong>Lieferant:</strong> ${ref.lieferant||'–'} &nbsp;|&nbsp; <strong>Positionen:</strong> ${pos.length}`;
+  renderStatusBar(ref.status||'bestellt');
+  document.getElementById('status-modal').classList.add('open');
+};
+
+function renderStatusBar(cur){
+  const steps=['bestellt','teillieferung','vollstaendig'];
+  document.getElementById('status-modal-bar').innerHTML=steps.map(s=>{
+    const c=STATUS_LABELS[s];
+    return `<div class="status-step ${s===cur?c.step:''}" onclick="setStatus('${s}')">${c.label.replace(/📋|📦|✅/,'').trim()}<br><span style="font-size:9px;">${s===cur?'● aktuell':''}</span></div>`;
+  }).join('');
+}
+
+window.setStatus = async function(newStatus){
+  if(!currentStatusBestellungId) return;
+  const pos=bestand.filter(b=>b.bestellKey===currentStatusBestellungId);
+  try {
+    setSyncDot('syncing');
+    const batch=writeBatch(db);
+    pos.forEach(b=>{ const ref=doc(db,`lager_${activeNL}_bestand`,b.id); batch.update(ref,{status:newStatus}); });
+    await batch.commit();
+    renderStatusBar(newStatus);
+    toast(`Status: ${STATUS_LABELS[newStatus].label}`);
+  } catch(e){ toast('❌ Fehler'); setSyncDot('offline'); }
+};
+
+window.closeStatusModal = function(e){ if(e.target.id==='status-modal') document.getElementById('status-modal').classList.remove('open'); };
+
+// ══════════════════════════════════════
+//  WARENAUSGANG
+// ══════════════════════════════════════
+function populateAuswahlListe(){
+  const sel=document.getElementById('aus-position');
+  sel.innerHTML='<option value="">– Position wählen –</option>';
+  bestand.filter(b=>b.verfuegbar>0).forEach(b=>{
+    const opt=document.createElement('option');
+    opt.value=b.id;
+    opt.textContent=`${b.material} | ${b.akte} | verf.: ${b.verfuegbar} ${b.einheit}`;
+    sel.appendChild(opt);
+  });
+  sel.onchange=()=>{
+    const b=bestand.find(x=>x.id===sel.value);
+    const info=document.getElementById('aus-info');
+    if(b){
+      info.style.display='block';
+      document.getElementById('aus-info-text').innerHTML=`<strong>Akte:</strong> ${b.akte} &nbsp;|&nbsp; <strong>Bestellung:</strong> ${b.bestellung}<br><strong>Lagerplatz:</strong> ${b.lagerplatz||'–'} &nbsp;|&nbsp; <strong>Verfügbar:</strong> <span style="color:var(--ok);font-weight:700;">${b.verfuegbar} ${b.einheit}</span>`;
+      document.getElementById('aus-akte-ziel').value='';
+    } else info.style.display='none';
+  };
+}
+
+window.buchungAusgang = async function(){
+  const posId=document.getElementById('aus-position').value;
+  const mengeRaw=numFrom(document.getElementById('aus-menge').value);
+  if(!posId){toast('⚠️ Position wählen');return;}
+  if(!mengeRaw||mengeRaw<=0){toast('⚠️ Menge eingeben');return;}
+  const pos=bestand.find(b=>b.id===posId);
+  if(!pos){toast('❌ Nicht gefunden');return;}
+  if(mengeRaw>pos.verfuegbar){toast(`⚠️ Nur ${pos.verfuegbar} ${pos.einheit} verfügbar`);return;}
+
+  const neueVerfuegbar=Math.round((pos.verfuegbar-mengeRaw)*10000)/10000;
+  const akteZiel=document.getElementById('aus-akte-ziel').value.trim()||pos.akte;
+  const person=document.getElementById('aus-person').value.trim();
+  const bemerk=document.getElementById('aus-bemerkung').value.trim();
+
+  try {
+    setSyncDot('syncing');
+    const batch=writeBatch(db);
+    batch.update(doc(db,`lager_${activeNL}_bestand`,pos.id),{verfuegbar:neueVerfuegbar});
+    const lref=doc(collection(db,`lager_${activeNL}_log`));
+    batch.set(lref,{typ:'Ausgang',datum:heute(),akte:akteZiel,material:pos.material,menge:`${mengeRaw} ${pos.einheit}`,ref:pos.bestellung,person,bemerkung:bemerk,ts:Date.now()});
+    await batch.commit();
+    ['aus-menge','aus-person','aus-bemerkung','aus-akte-ziel'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('aus-position').value='';
+    document.getElementById('aus-info').style.display='none';
+    toast('📤 Entnahme gebucht');
+  } catch(e){ toast('❌ Fehler'); setSyncDot('offline'); }
+};
+
+// ══════════════════════════════════════
+//  BESTAND RENDER
+// ══════════════════════════════════════
+function renderBestand(){
+  const q=(document.getElementById('bestand-filter').value||'').toLowerCase();
+  const container=document.getElementById('bestand-list');
+
+  const active = bestand
+    .filter(b => b.deleted !== true)
+    .filter(b => [b.material,b.akte,b.bestellung,b.lagerplatz,b.artnr,b.lieferant].join(' ').toLowerCase().includes(q));
+
+  const deleted = bestand
+    .filter(b => b.deleted === true)
+    .filter(b => [b.material,b.akte,b.bestellung,b.lagerplatz,b.artnr,b.lieferant].join(' ').toLowerCase().includes(q));
+
+  if(!active.length && !deleted.length){
+    container.innerHTML='<div class="empty">Kein Bestand gefunden.</div>';
+    return;
+  }
+
+  let html='';
+
+  // ── Aktiv ──
+  if(active.length){
+    const byAkte={};
+    active.forEach(b=>{if(!byAkte[b.akte])byAkte[b.akte]=[];byAkte[b.akte].push(b);});
+
+    Object.entries(byAkte).forEach(([akte,items])=>{
+      html+=`<div class="section-sep">Projektakte: ${akte}</div>`;
+      const byBest={};
+      items.forEach(b=>{const k=b.bestellKey||b.bestellung;if(!byBest[k])byBest[k]=[];byBest[k].push(b);});
+      Object.entries(byBest).forEach(([key,positionen])=>{
+        const ref=positionen[0];
+        html+=`<div style="background:#f5f7fc;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div><span style="font-size:12px;font-weight:700;color:var(--blue);">📋 ${ref.bestellung}</span>${ref.lieferant?`<span style=\"font-size:11px;color:var(--sub);\"> · ${ref.lieferant}</span>`:''}</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              ${statusBadge(ref.status||'bestellt')}
+              <button onclick="event.stopPropagation(); openStatusModal('${ref.bestellKey||ref.bestellung}')" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--sub);">⚙</button>
+              <button class="btn-outline" style="padding:4px 8px;font-size:11px;" onclick="event.stopPropagation(); stornoBestellung('${ref.bestellKey||ref.bestellung}')">Storno</button>
+              <button class="btn-outline" style="padding:4px 8px;font-size:11px;border-color:#f3b1aa;color:var(--danger);" onclick="event.stopPropagation(); endgueltigLoeschen('${ref.bestellKey||ref.bestellung}')">Löschen</button>
+            </div>
+          </div>`;
+
+        positionen.forEach(b=>{
+          const pct=b.mengeNum>0?Math.round((b.verfuegbar/b.mengeNum)*100):0;
+          const pbarColor=pct>50?'var(--ok)':pct>10?'var(--accent)':'var(--danger)';
+          const badge=b.verfuegbar<=0?'<span class="badge badge-danger">Leer</span>':b.verfuegbar<b.mengeNum?`<span class="badge badge-warn">${b.verfuegbar} ${b.einheit}</span>`:`<span class="badge badge-ok">${b.verfuegbar} ${b.einheit}</span>`;
+          html+=`<div class="list-item" onclick="showDetail('${b.id}')" style="cursor:pointer;margin-bottom:6px;">
+            <div class="item-header"><div class="item-name">${b.material}</div>${badge}</div>
+            <div class="item-meta">${b.artnr?'<strong>Art.-Nr.:</strong> '+b.artnr+' &nbsp;|&nbsp; ':''}<strong>Gesamt:</strong> ${b.mengeNum} ${b.einheit}<br>${b.lagerplatz?'<strong>Lager:</strong> '+b.lagerplatz+' &nbsp;|&nbsp; ':''}<strong>Eingang:</strong> ${b.datum}</div>
+            <div class="pbar-bg"><div class="pbar-fill" style="width:${pct}%;background:${pbarColor};"></div></div>
+          </div>`;
+        });
+
+        html+=`</div>`;
+      });
+    });
+  }
+
+  // ── Storno-Bereich ──
+  if(deleted.length){
+    const byBestDel={};
+    deleted.forEach(b=>{const k=b.bestellKey||b.bestellung; if(!byBestDel[k])byBestDel[k]=[]; byBestDel[k].push(b);});
+    html += `<div class="section-sep">Storniert</div>`;
+    Object.entries(byBestDel).forEach(([key, positionen])=>{
+      const ref=positionen[0];
+      html += `<div class="list-item" style="border-style:dashed;opacity:.92;">
+        <div class="item-header">
+          <div class="item-name">🗑️ ${ref.bestellung} · ${ref.akte}</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            ${statusBadge(ref.status||'bestellt')}
+            <button class="btn-outline" style="padding:4px 8px;font-size:11px;" onclick="event.stopPropagation(); stornoRueckgaengig('${key}')">Storno zurück</button>
+          </div>
+        </div>
+        <div class="item-meta"><strong>Bezeichnung:</strong> ${ref.bez||'–'} &nbsp;|&nbsp; <strong>Positionen:</strong> ${positionen.length}</div>
+      </div>`;
+    });
+  }
+
+  container.innerHTML=html;
+}
+
+// ══════════════════════════════════════
+//  DETAIL MODAL
+// ══════════════════════════════════════
+window.showDetail = function(id){
+  const b=bestand.find(x=>x.id===id);
+  if(!b) return;
+  const nl=NL_CONFIG[activeNL];
+  document.getElementById('modal-title').textContent=b.material;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="item-meta" style="font-size:14px;line-height:2.1;">
+      <strong>Standort:</strong> ${nl.icon} ${nl.name}<br>
+      <strong>Projektakte:</strong> ${b.akte}<br>
+      <strong>Bestellnummer:</strong> ${b.bestellung}<br>
+      <strong>Bestellstatus:</strong> ${statusBadge(b.status||'bestellt')}<br>
+      ${b.lieferant?'<strong>Lieferant:</strong> '+b.lieferant+'<br>':''}
+      ${b.artnr?'<strong>Art.-Nr.:</strong> '+b.artnr+'<br>':''}
+      <strong>Eingebucht:</strong> ${b.mengeNum} ${b.einheit}<br>
+      <strong>Verfügbar:</strong> ${b.verfuegbar} ${b.einheit}<br>
+      <strong>Entnommen:</strong> ${Math.round((b.mengeNum-b.verfuegbar)*10000)/10000} ${b.einheit}<br>
+      ${b.lagerplatz?'<strong>Lagerplatz:</strong> '+b.lagerplatz+'<br>':''}
+      ${b.bemerkung?'<strong>Bemerkung:</strong> '+b.bemerkung+'<br>':''}
+      <strong>Eingang am:</strong> ${b.datum}
+    </div>
+    ${b.foto?`<img src="${b.foto}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;margin-top:12px;border:1px solid var(--border);" alt="Lieferschein" />`:''}`;
+  document.getElementById('detail-modal').classList.add('open');
+};
+window.closeModal = function(e){ if(e.target.id==='detail-modal') document.getElementById('detail-modal').classList.remove('open'); };
+
+// ══════════════════════════════════════
+//  STORNO (vereinfachtes Ausblenden)
+// ══════════════════════════════════════
+// Optional: Kann bei Bedarf wieder als Button eingebaut werden.
+// Aktuell bewusst ohne PIN/ohne Rollenlogik.
+
+window.stornoBestellung = async function(bestKey){
+  if(!confirm('Bestellung ausblenden (Storno)?')) return;
+  try {
+    setSyncDot('syncing');
+    const pos = bestand.filter(b => (b.bestellKey||b.bestellung) === bestKey);
+    if(!pos.length){ toast('❌ Keine Positionen'); return; }
+    const batch = writeBatch(db);
+    pos.forEach(p=> batch.update(doc(db, `lager_${activeNL}_bestand`, p.id), { deleted:true, deletedAt: heute(), deletedTs: Date.now() }));
+    const ref = pos[0];
+    batch.set(doc(collection(db, `lager_${activeNL}_log`)), { typ:'Storno', datum: heute(), akte: ref?.akte||'', material: ref?.bez||ref?.material||'', menge: `${pos.length} Pos.`, ref: ref?.bestellung||'', person: '', bemerkung:'Ausgeblendet', ts: Date.now() });
+    await batch.commit();
+    toast('🗑️ Storniert (ausgeblendet)');
+    renderBestand();
+    populateWE();
+  } catch(e){ console.error(e); toast('❌ Fehler'); setSyncDot('offline'); }
+};
+
+window.stornoRueckgaengig = async function(bestKey){
+  if(!confirm('Storno zurücknehmen – Bestellung wieder anzeigen?')) return;
+  try {
+    setSyncDot('syncing');
+    const snap = await getDocs(query(collection(db, `lager_${activeNL}_bestand`), where('bestellKey','==',bestKey)));
+    const docs = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    const pos = docs.length ? docs : bestand.filter(b => (b.bestellKey||b.bestellung)===bestKey);
+    if(!pos.length){ toast('❌ Keine Positionen'); return; }
+    const batch = writeBatch(db);
+    pos.forEach(p=> batch.update(doc(db, `lager_${activeNL}_bestand`, p.id), { deleted:false, deletedAt:'', deletedTs:0 }));
+    const ref = pos[0];
+    batch.set(doc(collection(db, `lager_${activeNL}_log`)), { typ:'Storno zurück', datum: heute(), akte: ref?.akte||'', material: ref?.bez||ref?.material||'', menge: `${pos.length} Pos.`, ref: ref?.bestellung||'', person: '', bemerkung:'Wieder sichtbar', ts: Date.now() });
+    await batch.commit();
+    toast('♻️ Storno zurückgenommen');
+    renderBestand();
+    populateWE();
+  } catch(e){ console.error(e); toast('❌ Fehler'); setSyncDot('offline'); }
+};
+
+window.endgueltigLoeschen = async function(bestKey){
+  if(!confirm('Bestellung ENDGÜLTIG löschen?\n\nAchtung: Alle Positionen und die Historie in Firestore bleiben zwar im Log als Eintrag sichtbar, aber die Bestands-Dokumente werden entfernt.')) return;
+  try {
+    setSyncDot('syncing');
+
+    // Alle Positionen der Bestellung aus Firestore laden (damit es auch klappt, wenn aktuell gefiltert)
+    const snap = await getDocs(query(collection(db, `lager_${activeNL}_bestand`), where('bestellKey','==',bestKey)));
+    const docs = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    const pos = docs.length ? docs : bestand.filter(b => (b.bestellKey||b.bestellung)===bestKey);
+    if(!pos.length){ toast('❌ Keine Positionen'); return; }
+
+    const batch = writeBatch(db);
+    pos.forEach(p=> batch.delete(doc(db, `lager_${activeNL}_bestand`, p.id)));
+
+    const ref = pos[0];
+    batch.set(doc(collection(db, `lager_${activeNL}_log`)), {
+      typ:'Gelöscht (Endgültig)',
+      datum: heute(),
+      akte: ref?.akte||'',
+      material: ref?.bez||ref?.material||'',
+      menge: `${pos.length} Pos.`,
+      ref: ref?.bestellung||'',
+      person: '',
+      bemerkung:'Hard-Delete durch Innendienst',
+      ts: Date.now()
+    });
+
+    await batch.commit();
+    toast('🧹 Endgültig gelöscht');
+    renderBestand();
+    populateWE();
+  } catch(e){ console.error(e); toast('❌ Fehler'); setSyncDot('offline'); }
+};
+
+
+
+// ══════════════════════════════════════
+//  LOG RENDER
+// ══════════════════════════════════════
+function renderLog(){
+  const q=(document.getElementById('log-filter').value||'').toLowerCase();
+  const container=document.getElementById('log-list');
+  const filtered=log.filter(l=>[l.akte,l.material,l.typ,l.ref,l.person,l.bemerkung].join(' ').toLowerCase().includes(q));
+  if(!filtered.length){container.innerHTML='<div class="empty">Keine Buchungen.</div>';return;}
+  container.innerHTML=filtered.map(l=>`
+    <div class="list-item">
+      <div class="item-header"><div class="item-name">${l.material}</div><span class="badge ${l.typ==='Eingang'?'badge-ok':'badge-blue'}">${l.typ}</span></div>
+      <div class="item-meta"><strong>Akte:</strong> ${l.akte} &nbsp;|&nbsp; <strong>Menge:</strong> ${l.menge}<br>
+        <strong>Bestellung:</strong> ${l.ref||'–'}${l.person?' &nbsp;|&nbsp; <strong>Person:</strong> '+l.person:''}<br>
+        <strong>Datum:</strong> ${l.datum}${l.bemerkung?'<br><strong>Bemerkung:</strong> '+l.bemerkung:''}
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════
+//  CSV EXPORT
+// ══════════════════════════════════════
+window.exportCSV = function(){
+  const nl=NL_CONFIG[activeNL];
+  const header=['Standort','Typ','Datum','Projektakte','Material','Menge','Bestellnr.','Person','Bemerkung'];
+  const rows=log.map(l=>[nl.name,l.typ,l.datum,l.akte,l.material,l.menge,l.ref||'',l.person||'',l.bemerkung||'']);
+  const csv=[header,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`Lagerbuchungen_${nl.name.replace(/ /g,'_')}.csv`; a.click();
+  toast('📥 CSV exportiert');
+};
+
+// ══════════════════════════════════════
+//  FREIE ARTIKEL → direkt in Bestand buchen
+// ══════════════════════════════════════
+window.freierArtikelBuchen = async function(){
+  const material = (document.getElementById('fa-material').value||'').trim();
+  const menge    = numFrom(document.getElementById('fa-menge').value);
+  const einheit  = (document.getElementById('fa-einheit').value||'').trim();
+  const person   = (document.getElementById('fa-person').value||'').trim();
+  if(!material){ toast('⚠️ Materialbeschreibung eingeben'); return; }
+  if(!menge || menge<=0){ toast('⚠️ Menge eingeben'); return; }
+  if(!einheit){ toast('⚠️ Einheit eingeben'); return; }
+  if(!person){ toast('⚠️ Techniker eintragen'); return; }
+
+  const artnr     = (document.getElementById('fa-artnr').value||'').trim();
+  const lagerplatz= (document.getElementById('fa-lagerplatz').value||'').trim();
+  const bem       = (document.getElementById('fa-bem').value||'').trim();
+
+  try {
+    setSyncDot('syncing');
+    const datum = heute();
+    const bestellKey = 'MANUELL-'+uid();
+
+    const batch = writeBatch(db);
+
+    // Bestand-Dokument
+    const ref = doc(collection(db, `lager_${activeNL}_bestand`));
+    batch.set(ref, {
+      manuell: true,
+      bestellKey,
+      bez: 'Freier Artikel',
+      akte: '–',
+      bestellung: '–',
+      lieferant: '',
+      status: 'vollstaendig',
+      material,
+      artnr,
+      mengeNum: menge,
+      einheit,
+      verfuegbar: menge,
+      lagerplatz,
+      bemerkung: bem,
+      datum,
+      foto: null,
+      angelegt: true,
+      bestaetigt: true,
+      istMenge: menge,
+      weBestaetigtDurch: person,
+      weBestaetigtAm: datum,
+      weBemerkung: 'Manuell (ohne Bestellung)',
+      ts: Date.now(),
+      deleted: false,
+      deletedAt: '',
+      deletedTs: 0
+    });
+
+    // Log
+    const lref = doc(collection(db, `lager_${activeNL}_log`));
+    batch.set(lref, {
+      typ: 'Manuell hinzugefügt',
+      datum,
+      akte: '–',
+      material,
+      menge: `${menge} ${einheit}`,
+      ref: '–',
+      person,
+      bemerkung: bem,
+      ts: Date.now()
+    });
+
+    await batch.commit();
+
+    // Reset Form
+    ['fa-material','fa-artnr','fa-menge','fa-einheit','fa-lagerplatz','fa-person','fa-bem'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    toast('✅ Freier Artikel gebucht');
+    setSyncDot('online');
+  } catch(e){ console.error(e); toast('❌ Fehler'); setSyncDot('offline'); }
+};
+
+// ══════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════
+function renderDashboard(){
+  const akteSet=new Set(bestand.map(b=>b.akte));
+  document.getElementById('stat-pos').textContent=bestand.length;
+  document.getElementById('stat-akte').textContent=akteSet.size;
+  const diff=bestand.filter(b=>b.verfuegbar!==b.mengeNum).length;
+  const sd=document.getElementById('stat-diff');
+  sd.textContent=diff; sd.style.color=diff>0?'var(--warn)':'var(--ok)';
+
+  const overview=document.getElementById('diff-overview');
+  if(!bestand.length){overview.innerHTML='<div class="empty">Noch keine Buchungen.</div>';}
+  else {
+    const byAkte={};
+    bestand.forEach(b=>{
+      if(!byAkte[b.akte])byAkte[b.akte]={pos:0,verf:0,ges:0,bestellungen:new Map()};
+      byAkte[b.akte].pos++;byAkte[b.akte].verf+=b.verfuegbar;byAkte[b.akte].ges+=b.mengeNum;
+      const k=b.bestellKey||b.bestellung;
+      if(!byAkte[b.akte].bestellungen.has(k))byAkte[b.akte].bestellungen.set(k,{nr:b.bestellung,status:b.status||'bestellt'});
+    });
+    overview.innerHTML=Object.entries(byAkte).map(([akte,d])=>{
+      const ent=Math.round((d.ges-d.verf)*100)/100;
+      const ok=ent===0;
+      const bestList=[...d.bestellungen.values()].map(bs=>`
+        <div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);">
+          <span>${bs.nr}</span>${statusBadge(bs.status)}
+        </div>`).join('');
+      return `<div class="list-item" style="margin-bottom:8px;">
+        <div class="item-header"><div class="item-name">${akte}</div><span class="badge ${ok?'badge-ok':'badge-warn'}">${ok?'OK':'Teilentnahme'}</span></div>
+        <div class="item-meta" style="margin-bottom:6px;"><strong>Positionen:</strong> ${d.pos} &nbsp;|&nbsp; <strong>Entnommen:</strong> <span class="${ok?'diff-ok':'diff-warn'}">${ent}</span> Einh.</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--sub);margin-bottom:4px;">Bestellungen</div>
+        ${bestList}
+      </div>`;
+    }).join('');
+  }
+
+  const recentLog=document.getElementById('recent-log');
+  if(!log.length){recentLog.innerHTML='<div class="empty">Keine Buchungen.</div>';return;}
+  recentLog.innerHTML=log.slice(0,5).map(l=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);">
+      <div><div style="font-weight:700;font-size:13px;">${l.material}</div><div style="font-size:11px;color:var(--sub);">${l.akte} · ${l.datum}</div></div>
+      <span class="badge ${l.typ==='Eingang'?'badge-ok':'badge-blue'}">${l.typ} ${l.menge}</span>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+document.getElementById('headerDate').textContent=new Date().toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+document.getElementById('nl-'+activeNL).classList.add('active');
+document.querySelectorAll('nav button')[0].classList.add('active');
+updateNLBanner();
+subscribeToNL(activeNL);
+
+</script>
+</body>
+</html>
