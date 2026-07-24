@@ -397,7 +397,14 @@ const STATUS_LABELS = {
 // ══════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════
-let activeNL = localStorage.getItem('elbion_nl') || 'ffm';
+function safeStorageGet(key){
+  try { return window.localStorage.getItem(key); } catch(e){ return null; }
+}
+function safeStorageSet(key, val){
+  try { window.localStorage.setItem(key, val); } catch(e){ /* ignore */ }
+}
+
+let activeNL = safeStorageGet('elbion_nl') || 'ffm';
 let bestand  = [];
 let log      = [];
 let pendingPositionen = [];
