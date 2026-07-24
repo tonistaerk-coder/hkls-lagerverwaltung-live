@@ -469,7 +469,7 @@ function subscribeToNL(nl) {
 // ══════════════════════════════════════
 window.switchNL = function(nl) {
   activeNL = nl;
-  localStorage.setItem('elbion_nl', nl);
+  safeStorageSet('elbion_nl', nl);
   document.querySelectorAll('.nl-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('nl-'+nl).classList.add('active');
   pendingPositionen = [];
